@@ -89,48 +89,47 @@ function transcribeAudio(audioPath, res) {
   const transcribeScript = path.join(__dirname, 'transcribe.py');
   console.log('Calling transcribe script:', transcribeScript);
   console.log('Audio file path:', audioPath);
-  // exec(`python "${transcribeScript}" "${audioPath}"`, (err, stdout, stderr) => {
-  //   console.log('Transcription stdout:', stdout);
-  //   console.log('Transcription stderr:', stderr);
-  //   console.log('Transcription error:', err);
-  //   if (err) {
-  //     console.error('Transcription error:', err);
-  //     return res.status(500).json({ 
-  //       error: 'Transcription failed: ' + err.message,
-  //       duration: 0
-  //     });
-  //   }
-  //   let result;
-  //   try {
-  //     const jsonMatch = stdout.match(/\{[^}]*\}/);
-  //     if (jsonMatch) {
-  //       result = JSON.parse(jsonMatch[0]);
-  //     } else {
-  //       result = {
-  //         transcription: stdout.trim().replace(/\n/g, ' '),
-  //         duration: 0,
-  //         error: 'No transcription result'
-  //       };
-  //     }
-  //   } catch (parseError) {
-  //     console.log('Could not parse JSON, treating as plain text');
-  //     const cleanText = stdout.trim().replace(/\n/g, ' ').replace(/Audio Duration:.*?seconds/, '').trim();
-  //     result = {
-  //       transcription: cleanText || 'Transcription failed',
-  //       duration: 0,
-  //       error: null
-  //     };
-  //   }
-  //   console.log('Final result:', result);
-  //   res.json({
-  //     success: true,
-  //     transcription: result.transcription || '',
-  //     duration: result.duration || 0,
-  //     error: result.error || null
-  //   });
-  // });
-  // For now, just return an error
-  return res.status(500).json({ error: 'Transcription not supported on server', duration: 0 });
+  const { exec } = require('child_process');
+  exec(`python "${transcribeScript}" "${audioPath}"`, (err, stdout, stderr) => {
+    console.log('Transcription stdout:', stdout);
+    console.log('Transcription stderr:', stderr);
+    console.log('Transcription error:', err);
+    if (err) {
+      console.error('Transcription error:', err);
+      return res.status(500).json({ 
+        error: 'Transcription failed: ' + err.message,
+        duration: 0
+      });
+    }
+    let result;
+    try {
+      const jsonMatch = stdout.match(/\{[^}]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        result = {
+          transcription: stdout.trim().replace(/\n/g, ' '),
+          duration: 0,
+          error: 'No transcription result'
+        };
+      }
+    } catch (parseError) {
+      console.log('Could not parse JSON, treating as plain text');
+      const cleanText = stdout.trim().replace(/\n/g, ' ').replace(/Audio Duration:.*?seconds/, '').trim();
+      result = {
+        transcription: cleanText || 'Transcription failed',
+        duration: 0,
+        error: null
+      };
+    }
+    console.log('Final result:', result);
+    res.json({
+      success: true,
+      transcription: result.transcription || '',
+      duration: result.duration || 0,
+      error: result.error || null
+    });
+  });
 }
 
 // Login endpoint
