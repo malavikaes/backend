@@ -163,7 +163,7 @@ app.post('/login', (req, res) => {
 // --- BEGIN: Automation Task Queue ---
 let automationTasks = [];
 
-// Insert endpoint (updated to add to automationTasks and store user_id)
+// Insert endpoint (returns task_id)
 app.post('/insert', (req, res) => {
   const { text_data, target_agent, target_column, username, password } = req.body;
   console.log('Received insert request:', { text_data, target_agent, target_column, username: username ? '***' : 'missing' });
@@ -232,7 +232,8 @@ app.post('/insert', (req, res) => {
           success: true,
           selenium_result: 'Task queued for local automation',
           parsed_fields: finalReportContent,
-          message: 'Text parsed and task queued for local automation'
+          message: 'Text parsed and task queued for local automation',
+          task_id: id // <-- add this line
         });
       }
     );
