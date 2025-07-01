@@ -3,7 +3,7 @@ const app = express();
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const { exec } = require('child_process');
+// const { exec } = require('child_process');
 const path = require('path');
 const multer = require('multer');
 const ffmpeg = require('ffmpeg-static');
@@ -64,17 +64,20 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
       console.log('Input file:', audioPath);
       console.log('Output file:', wavPath);
       console.log('FFmpeg path:', ffmpeg);
-      exec(`"${ffmpeg}" -i "${audioPath}" "${wavPath}" -y`, (convertErr) => {
-        if (convertErr) {
-          console.error('FFmpeg conversion error:', convertErr);
-          return res.status(500).json({ 
-            error: 'Audio conversion failed: ' + convertErr.message,
-            duration: 0
-          });
-        }
-        console.log('Conversion successful, now transcribing WAV file');
-        transcribeAudio(wavPath, res);
-      });
+      // FFmpeg conversion code commented out for clarity
+      // exec(`"${ffmpeg}" -i "${audioPath}" "${wavPath}" -y`, (convertErr) => {
+      //   if (convertErr) {
+      //     console.error('FFmpeg conversion error:', convertErr);
+      //     return res.status(500).json({ 
+      //       error: 'Audio conversion failed: ' + convertErr.message,
+      //       duration: 0
+      //     });
+      //   }
+      //   console.log('Conversion successful, now transcribing WAV file');
+      //   transcribeAudio(wavPath, res);
+      // });
+      // For now, just return an error if not WAV
+      return res.status(500).json({ error: 'Audio conversion not supported on server', duration: 0 });
     } else {
       transcribeAudio(audioPath, res);
     }
@@ -88,46 +91,48 @@ function transcribeAudio(audioPath, res) {
   const transcribeScript = path.join(__dirname, 'transcribe.py');
   console.log('Calling transcribe script:', transcribeScript);
   console.log('Audio file path:', audioPath);
-  exec(`python "${transcribeScript}" "${audioPath}"`, (err, stdout, stderr) => {
-    console.log('Transcription stdout:', stdout);
-    console.log('Transcription stderr:', stderr);
-    console.log('Transcription error:', err);
-    if (err) {
-      console.error('Transcription error:', err);
-      return res.status(500).json({ 
-        error: 'Transcription failed: ' + err.message,
-        duration: 0
-      });
-    }
-    let result;
-    try {
-      const jsonMatch = stdout.match(/\{[^}]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        result = {
-          transcription: stdout.trim().replace(/\n/g, ' '),
-          duration: 0,
-          error: 'No transcription result'
-        };
-      }
-    } catch (parseError) {
-      console.log('Could not parse JSON, treating as plain text');
-      const cleanText = stdout.trim().replace(/\n/g, ' ').replace(/Audio Duration:.*?seconds/, '').trim();
-      result = {
-        transcription: cleanText || 'Transcription failed',
-        duration: 0,
-        error: null
-      };
-    }
-    console.log('Final result:', result);
-    res.json({
-      success: true,
-      transcription: result.transcription || '',
-      duration: result.duration || 0,
-      error: result.error || null
-    });
-  });
+  // exec(`python "${transcribeScript}" "${audioPath}"`, (err, stdout, stderr) => {
+  //   console.log('Transcription stdout:', stdout);
+  //   console.log('Transcription stderr:', stderr);
+  //   console.log('Transcription error:', err);
+  //   if (err) {
+  //     console.error('Transcription error:', err);
+  //     return res.status(500).json({ 
+  //       error: 'Transcription failed: ' + err.message,
+  //       duration: 0
+  //     });
+  //   }
+  //   let result;
+  //   try {
+  //     const jsonMatch = stdout.match(/\{[^}]*\}/);
+  //     if (jsonMatch) {
+  //       result = JSON.parse(jsonMatch[0]);
+  //     } else {
+  //       result = {
+  //         transcription: stdout.trim().replace(/\n/g, ' '),
+  //         duration: 0,
+  //         error: 'No transcription result'
+  //       };
+  //     }
+  //   } catch (parseError) {
+  //     console.log('Could not parse JSON, treating as plain text');
+  //     const cleanText = stdout.trim().replace(/\n/g, ' ').replace(/Audio Duration:.*?seconds/, '').trim();
+  //     result = {
+  //       transcription: cleanText || 'Transcription failed',
+  //       duration: 0,
+  //       error: null
+  //     };
+  //   }
+  //   console.log('Final result:', result);
+  //   res.json({
+  //     success: true,
+  //     transcription: result.transcription || '',
+  //     duration: result.duration || 0,
+  //     error: result.error || null
+  //   });
+  // });
+  // For now, just return an error
+  return res.status(500).json({ error: 'Transcription not supported on server', duration: 0 });
 }
 
 // Login endpoint
@@ -198,77 +203,17 @@ app.post('/insert', (req, res) => {
     console.log('Parsed fields:', finalReportContent);
     fs.writeFileSync(reportPath, finalReportContent);
     console.log('Parsed report data written to file:', reportPath);
-    const seleniumScriptPath = path.join(__dirname, 'selenium_scripts', 'menu_add_report.py');
-    console.log('Executing Selenium script:', seleniumScriptPath);
-    exec(`python "${seleniumScriptPath}"`, (err, stdout, stderr) => {
-      console.log('Selenium stdout:', stdout);
-      console.log('Selenium stderr:', stderr);
-      if (err) {
-        console.error('Selenium script error:', err);
-        const errorResult = `Error executing Selenium script: ${err.message}`;
-        const errorStatus = 'FAILURE';
-        db.query(
-          'SELECT EMPID FROM EMPLOY_REGISTRATION WHERE USERNAME = ? AND PASSWORD = ?',
-          [username, password],
-          (userErr, userResults) => {
-            if (userErr) {
-              console.error('Error getting user EMPID:', userErr);
-            } else if (userResults.length > 0) {
-              const userEmpId = userResults[0].EMPID;
-              db.query(
-                'INSERT INTO MOB_NOTIFICATIONS (USER_ID, VOICE_FILE_URL, NOTI_TEXT, STATUS, CREATED_AT, SEEN, DELETED, NOTIFICATION_TYPE, NOTIFICATION_PRIORITY) VALUES (?, ?, ?, ?, NOW(), 0, 0, ?, ?)',
-                [userEmpId, '', errorResult, errorStatus, 'SELENIUM_RESULT', 1],
-                (dbErr) => {
-                  if (dbErr) console.error('Error saving notification:', dbErr);
-                }
-              );
-            }
-          }
-        );
-        return res.status(500).json({
-          success: false,
-          selenium_result: errorResult,
-          error: stderr || err.message
-        });
-      }
-      const isSuccess = stdout.toLowerCase().includes('clicked submit button') || 
-                       stdout.toLowerCase().includes('success') ||
-                       !stdout.toLowerCase().includes('could not');
-      const status = isSuccess ? 'SUCCESS' : 'FAILURE';
-      const notificationText = `🔍 PARSED FIELDS:\n${finalReportContent}\n\n🤖 SELENIUM RESULT:\n${stdout}`;
-      console.log('🔍 Attempting to save notification for user:', username);
-      db.query(
-        'SELECT EMPID FROM EMPLOY_REGISTRATION WHERE USERNAME = ? AND PASSWORD = ?',
-        [username, password],
-        (userErr, userResults) => {
-          if (userErr) {
-            console.error('❌ Error getting user EMPID:', userErr);
-          } else if (userResults.length > 0) {
-            const userEmpId = userResults[0].EMPID;
-            console.log('✅ Found user EMPID:', userEmpId);
-            db.query(
-              'INSERT INTO MOB_NOTIFICATIONS (USER_ID, VOICE_FILE_URL, NOTI_TEXT, STATUS, CREATED_AT, SEEN, DELETED, NOTIFICATION_TYPE, NOTIFICATION_PRIORITY) VALUES (?, ?, ?, ?, NOW(), 0, 0, ?, ?)',
-              [userEmpId, '', notificationText, status, 'SELENIUM_RESULT', 1],
-              (dbErr, dbResult) => {
-                if (dbErr) {
-                  console.error('❌ Error saving notification:', dbErr);
-                  console.error('❌ Error details:', dbErr.message);
-                } else {
-                  console.log('✅ Notification saved successfully with ID:', dbResult.insertId);
-                }
-              }
-            );
-          } else {
-            console.error('❌ No user found with username:', username);
-          }
-        }
-      );
-      res.json({
-        success: true,
-        selenium_result: notificationText,
-        parsed_fields: finalReportContent,
-        message: 'Text parsed and Selenium script executed'
-      });
+    // const seleniumScriptPath = path.join(__dirname, 'selenium_scripts', 'menu_add_report.py');
+    // console.log('Executing Selenium script:', seleniumScriptPath);
+    // exec(`python "${seleniumScriptPath}"`, (err, stdout, stderr) => {
+    //   ... (all code for running Selenium and saving notifications)
+    // });
+    // Instead, just respond with a success message after parsing and writing files
+    res.json({
+      success: true,
+      selenium_result: 'Task queued for local automation',
+      parsed_fields: finalReportContent,
+      message: 'Text parsed and task queued for local automation'
     });
   } catch (error) {
     console.error('Error parsing text or writing report file:', error);
@@ -280,19 +225,19 @@ app.post('/insert', (req, res) => {
   }
 });
 
-// Trigger Selenium and write credentials
-app.post('/trigger-selenium', (req, res) => {
-  const { username, password } = req.body;
-  const credPath = path.join(__dirname, 'selenium_scripts', 'my_credentials.txt');
-  fs.writeFileSync(
-    credPath,
-    `username=${username}\npassword=${password}\n`
-  );
-  exec('python selenium_scripts/menu_add_report.py', (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ error: stderr });
-    res.json({ success: true, output: stdout });
-  });
-});
+// // Trigger Selenium and write credentials
+// app.post('/trigger-selenium', (req, res) => {
+//   const { username, password } = req.body;
+//   const credPath = path.join(__dirname, 'selenium_scripts', 'my_credentials.txt');
+//   fs.writeFileSync(
+//     credPath,
+//     `username=${username}\npassword=${password}\n`
+//   );
+//   exec('python selenium_scripts/menu_add_report.py', (err, stdout, stderr) => {
+//     if (err) return res.status(500).json({ error: stderr });
+//     res.json({ success: true, output: stdout });
+//   });
+// });
 
 // Notification endpoints
 app.get('/notifications', (req, res) => {
