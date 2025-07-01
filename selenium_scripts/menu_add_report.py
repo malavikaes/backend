@@ -50,7 +50,7 @@ def setup_driver():
 
     # Use browserless.io remote endpoint
     driver = webdriver.Remote(
-        command_executor='wss://chrome.browserless.io?token=2SbDAqQZbcaC22hbfe331dbdef92fc297315356de7e2bbd87',
+        command_executor='https://chrome.browserless.io/webdriver?token=2SbDAqQZbcaC22hbfe331dbdef92fc297315356de7e2bbd87',
         options=chrome_options
     )
     return driver
