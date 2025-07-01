@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+
+# Uploaded audio and output files
+uploads/
+output/
+
+# Environment and config
+.env
+
+# Log files
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Selenium build artifacts
+selenium_scripts/.dist/ 
