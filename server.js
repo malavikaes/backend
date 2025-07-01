@@ -35,15 +35,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Setup MySQL connection
-const db = mysql.createConnection({
-  host: '88.150.227.117',
-  user: 'nrktrn_web_admin',
-  password: 'GOeg&*$*657',
-  port: '3306',
-  database: 'nrkindex_trn',
-  auth_plugin: 'mysql_native_password',
-  connect_timeout: 300,
-});
+     const db = mysql.createPool({
+       host: '88.150.227.117',
+       user: 'nrktrn_web_admin',
+       password: 'GOeg&*$*657',
+       port: '3306',
+       database: 'nrkindex_trn',
+       auth_plugin: 'mysql_native_password',
+       connectTimeout: 30000, // 30 seconds
+       waitForConnections: true,
+       connectionLimit: 10,
+       queueLimit: 0
+     });
 db.connect((err) => {
   if (err) {
     console.error('Error connecting to MySQL:', err);
