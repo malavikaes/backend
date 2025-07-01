@@ -5,9 +5,7 @@ import sys
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -45,12 +43,16 @@ def load_report_data(report_file):
     return report_data
 
 def setup_driver():
-    chrome_options = ChromeOptions()
+    chrome_options = Options()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.binary_location = '/usr/bin/chromium'
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+
+    # Use browserless.io remote endpoint
+    driver = webdriver.Remote(
+        command_executor='wss://chrome.browserless.io?token=2SbDAqQZbcaC22hbfe331dbdef92fc297315356de7e2bbd87',
+        options=chrome_options
+    )
     return driver
 
 def login_and_select_menu(driver, credentials):
