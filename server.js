@@ -160,7 +160,10 @@ app.post('/login', (req, res) => {
   );
 });
 
-// Insert endpoint (updated to add to automationTasks)
+// --- BEGIN: Automation Task Queue ---
+let automationTasks = [];
+
+// Insert endpoint (updated to add to automationTasks and store user_id)
 app.post('/insert', (req, res) => {
   const { text_data, target_agent, target_column, username, password } = req.body;
   console.log('Received insert request:', { text_data, target_agent, target_column, username: username ? '***' : 'missing' });
@@ -204,22 +207,35 @@ app.post('/insert', (req, res) => {
     fs.writeFileSync(reportPath, finalReportContent);
     console.log('Parsed report data written to file:', reportPath);
 
-    // --- ADD TO AUTOMATION TASK QUEUE ---
-    const id = Date.now();
-    automationTasks.push({
-      id,
-      reportData: finalReportContent,
-      credentials: credContent,
-      status: 'pending'
-    });
-    console.log('Task added to automationTasks queue:', { id });
+    // --- GET USER_ID (EMPID) ---
+    db.query(
+      'SELECT EMPID FROM EMPLOY_REGISTRATION WHERE USERNAME = ? AND PASSWORD = ?',
+      [username, password],
+      (userErr, userResults) => {
+        let user_id = null;
+        if (!userErr && userResults.length > 0) {
+          user_id = userResults[0].EMPID;
+        }
 
-    res.json({
-      success: true,
-      selenium_result: 'Task queued for local automation',
-      parsed_fields: finalReportContent,
-      message: 'Text parsed and task queued for local automation'
-    });
+        // --- ADD TO AUTOMATION TASK QUEUE ---
+        const id = Date.now();
+        automationTasks.push({
+          id,
+          reportData: finalReportContent,
+          credentials: credContent,
+          status: 'pending',
+          user_id // store user_id with the task
+        });
+        console.log('Task added to automationTasks queue:', { id, user_id });
+
+        res.json({
+          success: true,
+          selenium_result: 'Task queued for local automation',
+          parsed_fields: finalReportContent,
+          message: 'Text parsed and task queued for local automation'
+        });
+      }
+    );
   } catch (error) {
     console.error('Error parsing text or writing report file:', error);
     res.status(500).json({
@@ -229,6 +245,54 @@ app.post('/insert', (req, res) => {
     });
   }
 });
+
+app.post('/add-task', (req, res) => {
+  const { reportData, credentials, user_id } = req.body;
+  const id = Date.now();
+  automationTasks.push({ id, reportData, credentials, status: 'pending', user_id });
+  res.json({ success: true, id });
+});
+app.get('/automation-tasks', (req, res) => {
+  const pending = automationTasks.filter(t => t.status === 'pending');
+  res.json({ tasks: pending });
+});
+app.post('/automation-tasks/complete', (req, res) => {
+  const { id, result } = req.body;
+  const task = automationTasks.find(t => t.id === id);
+  if (task) {
+    task.status = 'done';
+    task.result = result;
+
+    // Determine status and color
+    let status = 'SUCCESS';
+    if (typeof result === 'string' && result.toLowerCase().includes('could not click submit')) {
+      status = 'FAILURE';
+    }
+
+    // Insert result into notifications table if user_id is available
+    if (task.user_id) {
+      const query = 'INSERT INTO MOB_NOTIFICATIONS (USER_ID, VOICE_FILE_URL, NOTI_TEXT, STATUS, CREATED_AT, SEEN, DELETED, NOTIFICATION_TYPE, NOTIFICATION_PRIORITY) VALUES (?, ?, ?, ?, NOW(), 0, 0, ?, ?)';
+      db.query(query, [parseInt(task.user_id), '', result, status, 'SELENIUM_RESULT', 1], (err, dbResult) => {
+        if (err) {
+          console.error('Insert notification error:', err);
+        }
+      });
+    }
+
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Task not found' });
+  }
+});
+app.get('/automation-tasks/result/:id', (req, res) => {
+  const task = automationTasks.find(t => t.id == req.params.id);
+  if (task && task.status === 'done') {
+    res.json({ result: task.result });
+  } else {
+    res.status(404).json({ error: 'Result not ready' });
+  }
+});
+// --- END: Automation Task Queue ---
 
 // Notification endpoints
 app.get('/notifications', (req, res) => {
@@ -310,39 +374,6 @@ app.delete('/notification/:id', (req, res) => {
     res.json({ success: true, message: 'Notification deleted successfully' });
   });
 });
-
-// --- BEGIN: Automation Task Queue Endpoints ---
-let automationTasks = [];
-app.post('/add-task', (req, res) => {
-  const { reportData, credentials } = req.body;
-  const id = Date.now();
-  automationTasks.push({ id, reportData, credentials, status: 'pending' });
-  res.json({ success: true, id });
-});
-app.get('/automation-tasks', (req, res) => {
-  const pending = automationTasks.filter(t => t.status === 'pending');
-  res.json({ tasks: pending });
-});
-app.post('/automation-tasks/complete', (req, res) => {
-  const { id, result } = req.body;
-  const task = automationTasks.find(t => t.id === id);
-  if (task) {
-    task.status = 'done';
-    task.result = result;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Task not found' });
-  }
-});
-app.get('/automation-tasks/result/:id', (req, res) => {
-  const task = automationTasks.find(t => t.id == req.params.id);
-  if (task && task.status === 'done') {
-    res.json({ result: task.result });
-  } else {
-    res.status(404).json({ error: 'Result not ready' });
-  }
-});
-// --- END: Automation Task Queue Endpoints ---
 
 app.get('/', (req, res) => res.send('Hello World!'));
 app.get('/test', (req, res) => res.json({ message: 'Server updated successfully!', timestamp: new Date().toISOString() }));
