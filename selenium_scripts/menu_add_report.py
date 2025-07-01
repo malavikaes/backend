@@ -45,12 +45,12 @@ def load_report_data(report_file):
     return report_data
 
 def setup_driver():
-    options = ChromeOptions()
-    options.add_argument("--start-maximized")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    chrome_options = ChromeOptions()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.binary_location = '/usr/bin/chromium'
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
     return driver
 
 def login_and_select_menu(driver, credentials):
