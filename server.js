@@ -464,4 +464,6 @@ app.delete('/notification/:id', (req, res) => {
 
 app.get('/', (req, res) => res.send('Hello World!'));
 app.get('/test', (req, res) => res.json({ message: 'Server updated successfully!', timestamp: new Date().toISOString() }));
-app.listen(5000, '0.0.0.0', () => console.log('Server running!'));
+//app.listen(5000, '0.0.0.0', () => console.log('Server running!'));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}!`));
