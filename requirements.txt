@@ -1,2 +1,14 @@
 speechrecognition
-selenium 
+selenium
+webdriver-manager
+chromedriver-autoinstaller
+requests
+pandas
+openpyxl
+beautifulsoup4
+lxml
+pillow
+pyautogui
+pyperclip
+openai
+whisper
