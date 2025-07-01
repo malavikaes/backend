@@ -47,14 +47,9 @@ const upload = multer({ storage: storage });
        connectionLimit: 10,
        queueLimit: 0
      });
-db.connect((err) => {
-  if (err) {
-    console.error('Error connecting to MySQL:', err);
-  } else {
-    console.log('Connected to MySQL database.');
-  }
-});
 
+// For pools, no need to call connect. Just log a message.
+console.log('MySQL pool created.');
 // Upload endpoint for audio files
 app.post('/upload', upload.single('audio'), async (req, res) => {
   try {
