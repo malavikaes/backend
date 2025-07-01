@@ -59,28 +59,26 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     console.log('File extension:', path.extname(req.file.filename));
     const audioPath = req.file.path;
     const wavPath = audioPath.replace(/\.[^/.]+$/, '.wav');
-    if (!audioPath.toLowerCase().endsWith('.wav')) {
-      console.log('Converting audio to WAV format...');
-      console.log('Input file:', audioPath);
-      console.log('Output file:', wavPath);
-      console.log('FFmpeg path:', ffmpeg);
-      // FFmpeg conversion code commented out for clarity
-      // exec(`"${ffmpeg}" -i "${audioPath}" "${wavPath}" -y`, (convertErr) => {
-      //   if (convertErr) {
-      //     console.error('FFmpeg conversion error:', convertErr);
-      //     return res.status(500).json({ 
-      //       error: 'Audio conversion failed: ' + convertErr.message,
-      //       duration: 0
-      //     });
-      //   }
-      //   console.log('Conversion successful, now transcribing WAV file');
-      //   transcribeAudio(wavPath, res);
-      // });
-      // For now, just return an error if not WAV
-      return res.status(500).json({ error: 'Audio conversion not supported on server', duration: 0 });
-    } else {
-      transcribeAudio(audioPath, res);
+   if (!audioPath.toLowerCase().endsWith('.wav')) {
+  console.log('Converting audio to WAV format...');
+  console.log('Input file:', audioPath);
+  console.log('Output file:', wavPath);
+  console.log('FFmpeg path:', ffmpeg);
+  const { exec } = require('child_process');
+  exec(`"${ffmpeg}" -i "${audioPath}" "${wavPath}" -y`, (convertErr) => {
+    if (convertErr) {
+      console.error('FFmpeg conversion error:', convertErr);
+      return res.status(500).json({ 
+        error: 'Audio conversion failed: ' + convertErr.message,
+        duration: 0
+      });
     }
+    console.log('Conversion successful, now transcribing WAV file');
+    transcribeAudio(wavPath, res);
+  });
+} else {
+  transcribeAudio(audioPath, res);
+}
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed: ' + error.message });
